@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Wheel Game</title>
+
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  text-align:center;
+  background:radial-gradient(circle,#2b1055,#000);
+  color:white;
+}
+
+h2{margin-top:10px;}
+
+#boardFrame{
+  width:95%;
+  max-width:420px;
+  margin:10px auto;
+  padding:12px;
+  background:linear-gradient(45deg,#0f2027,#203a43,#2c5364);
+  border:6px solid gold;
+  border-radius:20px;
+  box-shadow:0 0 20px gold;
+}
+
+.row{
+  display:flex;
+  justify-content:center;
+  margin:5px 0;
+}
+
+.tile{
+  width:28px;
+  height:38px;
+  margin:2px;
+  background:#0b3d3d;
+  border-radius:4px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  font-size:18px;
+}
+
+.blank{ background:transparent; }
+
+#letters{
+  width:95%;
+  max-width:420px;
+  margin:10px auto;
+}
+
+#letters button{
+  width:28px;
+  height:28px;
+  margin:2px;
+  font-size:14px;
+}
+
+#wheelContainer{
+  margin-top:10px;
+}
+
+canvas{
+  background:#111;
+  border-radius:50%;
+}
+
+button{
+  margin-top:8px;
+  padding:8px 15px;
+  font-weight:bold;
+}
+
+#score{
+  margin-top:5px;
+  font-size:18px;
+}
+</style>
+</head>
+<body>
+
+<h2>🎡 Movie Wheel Game</h2>
+
+<div id="setup">
+  <input type="text" id="movieInput" placeholder="Enter Movie Name">
+  <br>
+  <button onclick="startGame()">Start Game</button>
+</div>
+
+<div id="game" style="display:none;">
+  <div id="boardFrame"></div>
+
+  <div id="wheelContainer">
+    <canvas id="wheel" width="250" height="250"></canvas>
+    <br>
+    <button onclick="spinWheel()">🎡 Spin</button>
+    <div id="score">Total: ₹0</div>
+  </div>
+
+  <div id="letters"></div>
+  <div id="message"></div>
+  <button onclick="replay()">🔁 Replay</button>
+</div>
+
+<script>
+
+let movie="";
+let guessed=[];
+let totalMoney=0;
+let currentSpinValue=0;
+let allowGuess=false;
+
+const maxCols=12;
+
+const wheelItems=[
+  500,1000,2000,5000,10000,
+  20000,50000,75000,
+  "SNAKE",
+  "LOSE TURN"
+];
+
+const canvas=document.getElementById("wheel");
+const ctx=canvas.getContext("2d");
+let startAngle=0;
+
+function drawWheel(){
+  const arc=2*Math.PI/wheelItems.length;
+
+  wheelItems.forEach((item,i)=>{
+    const angle=startAngle+i*arc;
+    ctx.beginPath();
+    ctx.fillStyle=i%2===0?"#ffcc00":"#ff6600";
+    ctx.moveTo(125,125);
+    ctx.arc(125,125,120,angle,angle+arc);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(125,125);
+    ctx.rotate(angle+arc/2);
+    ctx.fillStyle="black";
+    ctx.font="bold 12px Arial";
+    ctx.fillText(
+      item==="SNAKE"?"🐍":
+      item==="LOSE TURN"?"❌":
+      "₹"+item,
+      60,5
+    );
+    ctx.restore();
+  });
+}
+
+drawWheel();
+
+function spinWheel(){
+  let spinAngle=Math.random()*2000+2000;
+  let duration=3000;
+  let start=performance.now();
+
+  function animate(now){
+    let progress=now-start;
+    startAngle+=0.3;
+    ctx.clearRect(0,0,250,250);
+    drawWheel();
+
+    if(progress<duration){
+      requestAnimationFrame(animate);
+    }else{
+      determineResult();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function determineResult(){
+  const arc=2*Math.PI/wheelItems.length;
+  let index=Math.floor(Math.random()*wheelItems.length);
+  let result=wheelItems[index];
+
+  if(result==="SNAKE"){
+    totalMoney=0;
+    allowGuess=false;
+    document.getElementById("message").innerHTML="🐍 Snake! Money Reset!";
+  }
+  else if(result==="LOSE TURN"){
+    allowGuess=false;
+    document.getElementById("message").innerHTML="❌ Lose Turn!";
+  }
+  else{
+    currentSpinValue=result;
+    allowGuess=true;
+    document.getElementById("message").innerHTML="Spin: ₹"+result+" — Guess a letter!";
+  }
+
+  updateScore();
+}
+
+function updateScore(){
+  document.getElementById("score").innerHTML="Total: ₹"+totalMoney;
+}
+
+function startGame(){
+  movie=document.getElementById("movieInput").value.toUpperCase().trim();
+  if(movie===""){alert("Enter movie name");return;}
+
+  guessed=[];
+  totalMoney=0;
+  updateScore();
+
+  document.getElementById("setup").style.display="none";
+  document.getElementById("game").style.display="block";
+
+  createBoard();
+  createLetters();
+}
+
+function createBoard(){
+  const frame=document.getElementById("boardFrame");
+  frame.innerHTML="";
+  let words=movie.split(" ");
+  let lines=[];
+  let line="";
+
+  words.forEach(word=>{
+    if((line+" "+word).trim().length<=maxCols){
+      line=(line?line+" ":"")+word;
+    }else{
+      lines.push(line);
+      line=word;
+    }
+  });
+  if(line) lines.push(line);
+
+  lines.forEach(line=>{
+    const row=document.createElement("div");
+    row.className="row";
+
+    for(let i=0;i<maxCols;i++){
+      const tile=document.createElement("div");
+
+      if(i<line.length){
+        if(line[i]===" "){
+          tile.className="tile blank";
+        }else{
+          tile.className="tile";
+          tile.dataset.letter=line[i];
+          tile.innerHTML="_";
+        }
+      }else{
+        tile.className="tile blank";
+      }
+      row.appendChild(tile);
+    }
+    frame.appendChild(row);
+  });
+}
+
+function createLetters(){
+  const letters=document.getElementById("letters");
+  letters.innerHTML="";
+  for(let i=65;i<=90;i++){
+    const btn=document.createElement("button");
+    btn.innerHTML=String.fromCharCode(i);
+    btn.onclick=function(){guess(btn.innerHTML,btn);};
+    letters.appendChild(btn);
+  }
+}
+
+function guess(letter,btn){
+  if(!allowGuess) return;
+
+  btn.disabled=true;
+  guessed.push(letter);
+
+  let found=0;
+
+  document.querySelectorAll(".tile").forEach(tile=>{
+    if(tile.dataset.letter===letter){
+      tile.innerHTML=letter;
+      found++;
+    }
+  });
+
+  if(found>0){
+    totalMoney+=currentSpinValue*found;
+    updateScore();
+  }
+
+  allowGuess=false;
+  checkWin();
+}
+
+function checkWin(){
+  let solved=true;
+  document.querySelectorAll(".tile").forEach(tile=>{
+    if(tile.dataset.letter && tile.innerHTML==="_"){
+      solved=false;
+    }
+  });
+
+  if(solved){
+    document.getElementById("message").innerHTML="🎉 You Won ₹"+totalMoney+"!";
+  }
+}
+
+function replay(){
+  location.reload();
+}
+
+</script>
+</body>
+</html>
