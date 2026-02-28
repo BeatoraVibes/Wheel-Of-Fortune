@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Movie Wheel Game</title>
+<title>Movie Puzzle Game</title>
 
 <style>
+
 body{
   margin:0;
   font-family:Arial, sans-serif;
@@ -13,78 +14,110 @@ body{
   color:white;
 }
 
-h2{margin-top:10px;}
+/* ROTATE OVERLAY */
+#rotateMessage{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:black;
+  color:white;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  font-size:22px;
+  z-index:999;
+}
+
+#rotateMessage button{
+  margin-top:20px;
+  padding:10px 18px;
+  font-size:16px;
+  cursor:pointer;
+}
+
+/* Show overlay in portrait */
+@media screen and (orientation: portrait){
+  #rotateMessage{
+    display:flex;
+  }
+  #gameContainer{
+    display:none;
+  }
+}
+
+h2{
+  margin-top:10px;
+}
 
 #boardFrame{
-  width:95%;
-  max-width:420px;
-  margin:10px auto;
-  padding:12px;
+  width:90%;
+  max-width:1000px;
+  margin:20px auto;
+  padding:20px;
   background:linear-gradient(45deg,#0f2027,#203a43,#2c5364);
-  border:6px solid gold;
-  border-radius:20px;
-  box-shadow:0 0 20px gold;
+  border:8px solid gold;
+  border-radius:25px;
+  box-shadow:0 0 25px gold;
 }
 
 .row{
   display:flex;
   justify-content:center;
-  margin:5px 0;
+  margin:8px 0;
 }
 
 .tile{
-  width:28px;
-  height:38px;
-  margin:2px;
+  width:45px;
+  height:60px;
+  margin:4px;
   background:#0b3d3d;
-  border-radius:4px;
+  border-radius:6px;
   display:flex;
   align-items:center;
   justify-content:center;
+  font-size:26px;
   font-weight:bold;
-  font-size:18px;
 }
 
-.blank{ background:transparent; }
+.blank{
+  background:transparent;
+}
 
 #letters{
-  width:95%;
-  max-width:420px;
-  margin:10px auto;
+  margin-top:20px;
 }
 
 #letters button{
-  width:28px;
-  height:28px;
-  margin:2px;
-  font-size:14px;
-}
-
-#wheelContainer{
-  margin-top:10px;
-}
-
-canvas{
-  background:#111;
-  border-radius:50%;
-}
-
-button{
-  margin-top:8px;
-  padding:8px 15px;
-  font-weight:bold;
+  width:35px;
+  height:35px;
+  margin:3px;
+  font-size:16px;
   cursor:pointer;
 }
 
-#score{
-  margin-top:5px;
-  font-size:18px;
+button{
+  padding:8px 15px;
+  font-weight:bold;
+  margin-top:10px;
+  cursor:pointer;
 }
+
 </style>
 </head>
 <body>
 
-<h2>🎡 Movie Wheel Game</h2>
+<div id="rotateMessage">
+  🔄 Please Rotate Your Device<br>
+  Switch to Landscape Mode
+  <button onclick="forceLandscape()">Switch to Landscape</button>
+</div>
+
+<div id="gameContainer">
+
+<h2>🎬 Movie Puzzle Game</h2>
 
 <div id="setup">
   <input type="text" id="movieInput" placeholder="Enter Movie Name">
@@ -94,155 +127,50 @@ button{
 
 <div id="game" style="display:none;">
   <div id="boardFrame"></div>
-
-  <div id="wheelContainer">
-    <canvas id="wheel" width="260" height="260"></canvas>
-    <br>
-    <button id="spinBtn">🎡 Spin</button>
-    <div id="score">Total: ₹0</div>
-  </div>
-
   <div id="letters"></div>
   <div id="message"></div>
   <button onclick="replay()">🔁 Replay</button>
 </div>
 
+</div>
+
 <script>
-window.addEventListener("load", function(){
 
 let movie="";
-let totalMoney=0;
-let currentValue=0;
-let allowGuess=false;
-let spinning=false;
-let angle=0;
-const maxCols=12;
+const maxCols=14;
 
-const wheelItems=[
-  500,1000,2000,5000,10000,
-  20000,50000,75000,
-  "SNAKE",
-  "LOSE TURN"
-];
+/* FORCE LANDSCAPE FUNCTION */
+function forceLandscape(){
+  const elem=document.documentElement;
 
-const canvas=document.getElementById("wheel");
-const ctx=canvas.getContext("2d");
-
-function drawWheel(){
-  const arc=2*Math.PI/wheelItems.length;
-  ctx.clearRect(0,0,260,260);
-
-  wheelItems.forEach((item,i)=>{
-    const start=angle+i*arc;
-    const end=start+arc;
-
-    ctx.beginPath();
-    ctx.fillStyle=i%2===0?"#ffcc00":"#ff6600";
-    ctx.moveTo(130,130);
-    ctx.arc(130,130,120,start,end);
-    ctx.fill();
-
-    ctx.save();
-    ctx.translate(130,130);
-    ctx.rotate(start+arc/2);
-    ctx.fillStyle="black";
-    ctx.font="bold 12px Arial";
-    ctx.fillText(
-      item==="SNAKE"?"🐍":
-      item==="LOSE TURN"?"❌":
-      "₹"+item,
-      60,5
-    );
-    ctx.restore();
-  });
-
-  // Pointer (fixed top)
-  ctx.beginPath();
-  ctx.fillStyle="white";
-  ctx.moveTo(130,8);
-  ctx.lineTo(120,28);
-  ctx.lineTo(140,28);
-  ctx.fill();
-}
-
-drawWheel();
-
-document.getElementById("spinBtn").addEventListener("click", spinWheel);
-
-function spinWheel(){
-  if(spinning) return;
-  spinning=true;
-  allowGuess=false;
-
-  let velocity=Math.random()*0.25+0.35;
-  const friction=0.985;
-
-  function animate(){
-    angle+=velocity;
-    velocity*=friction;
-    drawWheel();
-
-    if(velocity>0.002){
-      requestAnimationFrame(animate);
-    }else{
-      spinning=false;
-      determineResult();
-    }
+  if(elem.requestFullscreen){
+    elem.requestFullscreen();
   }
 
-  requestAnimationFrame(animate);
+  if(screen.orientation && screen.orientation.lock){
+    screen.orientation.lock("landscape").catch(()=>{
+      alert("Landscape lock not supported on this device.");
+    });
+  }else{
+    alert("Your browser does not support automatic rotation.");
+  }
 }
 
-function determineResult(){
-  const arc=2*Math.PI/wheelItems.length;
-
-  let normalized=angle%(2*Math.PI);
-  if(normalized<0) normalized+=2*Math.PI;
-
-  const pointerAngle=3*Math.PI/2;
-  let relative=pointerAngle-normalized;
-  if(relative<0) relative+=2*Math.PI;
-
-  let index=Math.floor(relative/arc);
-  let result=wheelItems[index];
-
-  if(result==="SNAKE"){
-    totalMoney=0;
-    document.getElementById("message").innerHTML="🐍 Snake! Money Reset!";
-  }
-  else if(result==="LOSE TURN"){
-    document.getElementById("message").innerHTML="❌ Lose Turn!";
-  }
-  else{
-    currentValue=result;
-    allowGuess=true;
-    document.getElementById("message").innerHTML="Spin: ₹"+result+" — Guess!";
-  }
-
-  updateScore();
-}
-
-function updateScore(){
-  document.getElementById("score").innerHTML="Total: ₹"+totalMoney;
-}
-
-window.startGame=function(){
+function startGame(){
   movie=document.getElementById("movieInput").value.toUpperCase().trim();
-  if(movie===""){alert("Enter movie name");return;}
-
-  totalMoney=0;
-  updateScore();
+  if(movie===""){ alert("Enter movie name"); return; }
 
   document.getElementById("setup").style.display="none";
   document.getElementById("game").style.display="block";
 
   createBoard();
   createLetters();
-};
+}
 
 function createBoard(){
   const frame=document.getElementById("boardFrame");
   frame.innerHTML="";
+
   let words=movie.split(" ");
   let lines=[];
   let line="";
@@ -255,6 +183,7 @@ function createBoard(){
       line=word;
     }
   });
+
   if(line) lines.push(line);
 
   lines.forEach(line=>{
@@ -286,6 +215,7 @@ function createBoard(){
 function createLetters(){
   const letters=document.getElementById("letters");
   letters.innerHTML="";
+
   for(let i=65;i<=90;i++){
     const btn=document.createElement("button");
     btn.innerHTML=String.fromCharCode(i);
@@ -295,29 +225,20 @@ function createLetters(){
 }
 
 function guess(letter,btn){
-  if(!allowGuess) return;
-
   btn.disabled=true;
-  let found=0;
 
   document.querySelectorAll(".tile").forEach(tile=>{
     if(tile.dataset.letter===letter){
       tile.innerHTML=letter;
-      found++;
     }
   });
 
-  if(found>0){
-    totalMoney+=currentValue*found;
-    updateScore();
-  }
-
-  allowGuess=false;
   checkWin();
 }
 
 function checkWin(){
   let solved=true;
+
   document.querySelectorAll(".tile").forEach(tile=>{
     if(tile.dataset.letter && tile.innerHTML==="_"){
       solved=false;
@@ -325,15 +246,14 @@ function checkWin(){
   });
 
   if(solved){
-    document.getElementById("message").innerHTML="🎉 You Won ₹"+totalMoney+"!";
+    document.getElementById("message").innerHTML="🎉 Puzzle Solved!";
   }
 }
 
-window.replay=function(){
+function replay(){
   location.reload();
-};
+}
 
-});
 </script>
 
 </body>
