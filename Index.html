@@ -111,10 +111,11 @@ button{
 window.addEventListener("load", function(){
 
 let movie="";
-let guessed=[];
 let totalMoney=0;
 let currentValue=0;
 let allowGuess=false;
+let spinning=false;
+let angle=0;
 const maxCols=12;
 
 const wheelItems=[
@@ -126,8 +127,6 @@ const wheelItems=[
 
 const canvas=document.getElementById("wheel");
 const ctx=canvas.getContext("2d");
-let angle=0;
-let spinning=false;
 
 function drawWheel(){
   const arc=2*Math.PI/wheelItems.length;
@@ -157,12 +156,12 @@ function drawWheel(){
     ctx.restore();
   });
 
-  // pointer
+  // Pointer (fixed top)
   ctx.beginPath();
   ctx.fillStyle="white";
-  ctx.moveTo(130,10);
-  ctx.lineTo(120,30);
-  ctx.lineTo(140,30);
+  ctx.moveTo(130,8);
+  ctx.lineTo(120,28);
+  ctx.lineTo(140,28);
   ctx.fill();
 }
 
@@ -175,17 +174,15 @@ function spinWheel(){
   spinning=true;
   allowGuess=false;
 
-  let spinTime=0;
-  let spinDuration=3000;
-  let spinSpeed=Math.random()*0.3+0.35;
+  let velocity=Math.random()*0.25+0.35;
+  const friction=0.985;
 
   function animate(){
-    spinTime+=16;
-    angle+=spinSpeed;
-    spinSpeed*=0.985;
+    angle+=velocity;
+    velocity*=friction;
     drawWheel();
 
-    if(spinTime<spinDuration){
+    if(velocity>0.002){
       requestAnimationFrame(animate);
     }else{
       spinning=false;
@@ -198,8 +195,15 @@ function spinWheel(){
 
 function determineResult(){
   const arc=2*Math.PI/wheelItems.length;
-  let degrees=(angle%(2*Math.PI));
-  let index=Math.floor((2*Math.PI-degrees)/arc)%wheelItems.length;
+
+  let normalized=angle%(2*Math.PI);
+  if(normalized<0) normalized+=2*Math.PI;
+
+  const pointerAngle=3*Math.PI/2;
+  let relative=pointerAngle-normalized;
+  if(relative<0) relative+=2*Math.PI;
+
+  let index=Math.floor(relative/arc);
   let result=wheelItems[index];
 
   if(result==="SNAKE"){
@@ -226,7 +230,6 @@ window.startGame=function(){
   movie=document.getElementById("movieInput").value.toUpperCase().trim();
   if(movie===""){alert("Enter movie name");return;}
 
-  guessed=[];
   totalMoney=0;
   updateScore();
 
