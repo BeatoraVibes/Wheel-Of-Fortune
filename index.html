@@ -2,54 +2,72 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Multiplayer Movie Wheel Game</title>
+<title>TV Multiplayer Movie Game</title>
 
 <style>
 body{
   margin:0;
   font-family:Arial;
-  text-align:center;
-  background:radial-gradient(circle,#2b1055,#000);
+  background:radial-gradient(circle,#1a0033,#000);
   color:white;
+  overflow:hidden;
 }
 
-h2{margin-top:10px;}
+h2{
+  text-align:center;
+  margin:10px;
+}
 
-input,select,button{
-  padding:8px;
-  margin:5px;
-  font-weight:bold;
+#mainGame{
+  display:flex;
+  justify-content:space-evenly;
+  align-items:center;
+  height:75vh;
 }
 
 #boardFrame{
-  width:95%;
-  max-width:1000px;
-  margin:15px auto;
-  padding:20px;
+  padding:15px;
   background:linear-gradient(45deg,#0f2027,#203a43,#2c5364);
-  border:8px solid gold;
+  border:6px solid gold;
   border-radius:20px;
+  box-shadow:0 0 20px gold;
 }
 
 .row{
   display:flex;
   justify-content:center;
-  margin:6px 0;
+  margin:4px 0;
 }
 
 .tile{
-  width:45px;
-  height:60px;
-  margin:4px;
-  background:#0b3d3d;
+  width:35px;
+  height:50px;
+  margin:3px;
+  background:#003333;
   display:flex;
   align-items:center;
   justify-content:center;
-  font-size:26px;
+  font-size:20px;
   font-weight:bold;
+  border-radius:4px;
+  transition:0.3s;
+}
+
+.tile.reveal{
+  background:#00aa66;
+  box-shadow:0 0 10px lime;
 }
 
 .blank{background:transparent;}
+
+#wheelSection{
+  text-align:center;
+}
+
+canvas{
+  background:#111;
+  border-radius:50%;
+}
 
 #players{
   display:flex;
@@ -59,62 +77,73 @@ input,select,button{
 }
 
 .playerBox{
-  padding:10px;
+  padding:8px;
   border:2px solid white;
   border-radius:10px;
-  width:150px;
+  width:130px;
 }
 
 .active{
   border:3px solid yellow;
 }
 
-canvas{
+button{
+  padding:6px 12px;
+  margin:4px;
+  font-weight:bold;
+}
+
+#letters{
+  text-align:center;
   margin-top:10px;
-  background:#111;
-  border-radius:50%;
 }
 
 #letters button{
-  width:35px;
-  height:35px;
-  margin:3px;
+  width:28px;
+  height:28px;
+  margin:2px;
+  font-size:14px;
 }
 </style>
 </head>
 <body>
 
-<h2>🎡 Multiplayer Movie Wheel Game</h2>
+<h2>🎡 TV Multiplayer Movie Game</h2>
 
-<div id="setup">
-
+<div id="setup" style="text-align:center;">
 <input type="text" id="movieInput" placeholder="Enter Movie Name"><br>
 
 <select id="playerCount">
-  <option value="1">1 Player</option>
-  <option value="2">2 Players</option>
-  <option value="3">3 Players</option>
+<option value="1">1 Player</option>
+<option value="2">2 Players</option>
+<option value="3">3 Players</option>
 </select>
 
 <div id="playerInputs"></div>
-
 <button onclick="startGame()">Start Game</button>
 </div>
 
 <div id="game" style="display:none;">
 
+<div id="mainGame">
+
 <div id="boardFrame"></div>
 
-<canvas id="wheel" width="300" height="300"></canvas><br>
+<div id="wheelSection">
+<canvas id="wheel" width="280" height="280"></canvas><br>
 <button onclick="spinWheel()">🎡 Spin</button>
-<button onclick="buyVowel()">Buy Vowel (₹20000)</button>
+<button onclick="buyVowel()">Buy Vowel ₹20000</button><br>
+<input type="text" id="solveInput" placeholder="Solve Full Puzzle">
+<button onclick="solvePuzzle()">Solve</button>
+<div id="spinResult"></div>
+</div>
+
+</div>
 
 <div id="players"></div>
-
 <div id="letters"></div>
-<div id="message"></div>
 
-<button onclick="location.reload()">🔁 Restart</button>
+<button onclick="location.reload()">Restart</button>
 
 </div>
 
@@ -127,16 +156,24 @@ let angle=0;
 let spinning=false;
 let currentSpinValue=0;
 let allowGuess=false;
-const maxCols=14;
+let vowelMode=false;
+const maxCols=12;
 
 const wheelItems=[
-  10000,20000,30000,40000,50000,
-  60000,75000,100000,
-  "SNAKE","LOSE"
+  10000,30000,50000,
+  "SNAKE",
+  20000,60000,
+  "LOSE",
+  40000,80000,100000
 ];
 
 const canvas=document.getElementById("wheel");
 const ctx=canvas.getContext("2d");
+
+const spinSound=new Audio("https://actions.google.com/sounds/v1/foley/spin.ogg");
+const correctSound=new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+const wrongSound=new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+const winSound=new Audio("https://actions.google.com/sounds/v1/cartoon/party_horn.ogg");
 
 document.getElementById("playerCount").addEventListener("change", generatePlayerInputs);
 generatePlayerInputs();
@@ -225,9 +262,9 @@ function updatePlayers(){
   container.innerHTML="";
   players.forEach((p,i)=>{
     container.innerHTML+=`
-      <div class="playerBox ${i===currentPlayer?'active':''}">
-      ${p.name}<br>₹${p.money}
-      </div>`;
+    <div class="playerBox ${i===currentPlayer?'active':''}">
+    ${p.name}<br>₹${p.money}
+    </div>`;
   });
 }
 
@@ -235,7 +272,9 @@ function spinWheel(){
   if(spinning)return;
   spinning=true;
   allowGuess=false;
-  let velocity=0.6; // fast
+  vowelMode=false;
+  spinSound.play();
+  let velocity=0.7;
   const friction=0.985;
 
   function animate(){
@@ -254,30 +293,30 @@ function spinWheel(){
 
 function drawWheel(){
   const arc=2*Math.PI/wheelItems.length;
-  ctx.clearRect(0,0,300,300);
+  ctx.clearRect(0,0,280,280);
 
   wheelItems.forEach((item,i)=>{
     const start=angle+i*arc;
     ctx.beginPath();
     ctx.fillStyle=i%2?"orange":"gold";
-    ctx.moveTo(150,150);
-    ctx.arc(150,150,140,start,start+arc);
+    ctx.moveTo(140,140);
+    ctx.arc(140,140,130,start,start+arc);
     ctx.fill();
 
     ctx.save();
-    ctx.translate(150,150);
+    ctx.translate(140,140);
     ctx.rotate(start+arc/2);
     ctx.fillStyle="black";
-    ctx.font="bold 14px Arial";
-    ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,70,5);
+    ctx.font="bold 12px Arial";
+    ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,65,5);
     ctx.restore();
   });
 
   ctx.beginPath();
   ctx.fillStyle="white";
-  ctx.moveTo(150,5);
-  ctx.lineTo(140,30);
-  ctx.lineTo(160,30);
+  ctx.moveTo(140,5);
+  ctx.lineTo(130,25);
+  ctx.lineTo(150,25);
   ctx.fill();
 }
 
@@ -289,6 +328,8 @@ function determineResult(){
   if(relative<0)relative+=2*Math.PI;
   let index=Math.floor(relative/arc);
   let result=wheelItems[index];
+
+  document.getElementById("spinResult").innerText="Result: "+result;
 
   if(result==="SNAKE"){
     players[currentPlayer].money=0;
@@ -306,34 +347,51 @@ function determineResult(){
 
 function guess(letter,btn){
   if(!allowGuess)return;
-
   btn.disabled=true;
   let found=0;
 
   document.querySelectorAll(".tile").forEach(tile=>{
     if(tile.dataset.letter===letter){
       tile.innerHTML=letter;
+      tile.classList.add("reveal");
       found++;
     }
   });
 
   if(found>0){
-    players[currentPlayer].money+=currentSpinValue*found;
-    updatePlayers();
+    if(!vowelMode){
+      players[currentPlayer].money+=currentSpinValue*found;
+    }
+    correctSound.play();
   }else{
+    wrongSound.play();
     nextPlayer();
   }
 
+  vowelMode=false;
   allowGuess=false;
+  updatePlayers();
   checkWin();
 }
 
 function buyVowel(){
   if(players[currentPlayer].money<20000)return;
-
   players[currentPlayer].money-=20000;
-  updatePlayers();
+  vowelMode=true;
   allowGuess=true;
+  updatePlayers();
+}
+
+function solvePuzzle(){
+  const guess=document.getElementById("solveInput").value.toUpperCase().trim();
+  if(guess===movie){
+    players[currentPlayer].money+=20000;
+    winSound.play();
+    alert(players[currentPlayer].name+" Wins!");
+    location.reload();
+  }else{
+    nextPlayer();
+  }
 }
 
 function nextPlayer(){
@@ -351,8 +409,9 @@ function checkWin(){
 
   if(solved){
     players[currentPlayer].money+=20000;
-    updatePlayers();
+    winSound.play();
     alert(players[currentPlayer].name+" Wins!");
+    location.reload();
   }
 }
 
