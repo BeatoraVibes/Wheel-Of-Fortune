@@ -83,6 +83,7 @@ body{
   border:none;
   border-radius:6px;
   cursor:pointer;
+  background:#f5f5f5;
 }
 
 #letterGrid button.used{
@@ -390,17 +391,33 @@ function guess(letter,btn){
     nextPlayer();
   }
 
+  if(vowelMode){
+    document.querySelectorAll("#letterGrid button").forEach(btn=>{
+      if("AEIOU".includes(btn.innerHTML)){
+        btn.disabled=true;
+        btn.classList.add("used");
+      }
+    });
+  }
+
   vowelMode=false;
   allowGuess=false;
   updatePlayers();
 }
 
 function buyVowel(){
-  if(players[currentPlayer].money < 20000)return;
+  if(players[currentPlayer].money < 20000) return;
 
   players[currentPlayer].money -= 20000;
-  vowelMode=true;
-  allowGuess=true;
+  vowelMode = true;
+  allowGuess = true;
+
+  document.querySelectorAll("#letterGrid button").forEach(btn=>{
+    if("AEIOU".includes(btn.innerHTML) && !btn.classList.contains("used")){
+      btn.disabled = false;
+      btn.classList.remove("used");
+    }
+  });
 
   updatePlayers();
 }
