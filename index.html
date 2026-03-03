@@ -265,14 +265,17 @@ function createBoard(){
 function createLetters(){
   const grid=document.getElementById("letterGrid");
   grid.innerHTML="";
-  for(let i=65;i<=90;i++){
-    const btn=document.createElement("button");
-    btn.innerHTML=String.fromCharCode(i);
 
-    if("AEIOU".includes(btn.innerHTML)){
-      btn.disabled=true;
-      btn.classList.add("used");
-    }
+  for(let i=65;i<=90;i++){
+    const letter=String.fromCharCode(i);
+    const btn=document.createElement("button");
+    btn.innerHTML=letter;
+
+    btn.onclick=function(){guess(letter,btn);};
+
+    grid.appendChild(btn);
+  }
+}
 
     btn.onclick=function(){guess(btn.innerHTML,btn);};
     grid.appendChild(btn);
@@ -368,10 +371,18 @@ function determineResult(){
 }
 
 function guess(letter,btn){
-  if(!allowGuess)return;
 
-  btn.disabled=true;
+  if(!allowGuess) return;
+
+  // If vowel and not in vowel mode → block
+  if("AEIOU".includes(letter) && !vowelMode){
+    return;
+  }
+
+  if(btn.classList.contains("used")) return;
+
   btn.classList.add("used");
+  btn.disabled=true;
 
   let found=0;
 
@@ -384,22 +395,19 @@ function guess(letter,btn){
   });
 
   if(found>0){
-    if(!vowelMode){
-      players[currentPlayer].money+=currentSpinValue*found;
+    // Only add money for consonants
+    if(!"AEIOU".includes(letter)){
+      players[currentPlayer].money += currentSpinValue * found;
     }
   }else{
     nextPlayer();
   }
 
-  if(vowelMode){
-    document.querySelectorAll("#letterGrid button").forEach(btn=>{
-      if("AEIOU".includes(btn.innerHTML)){
-        btn.disabled=true;
-        btn.classList.add("used");
-      }
-    });
-  }
+  vowelMode=false;
+  allowGuess=false;
 
+  updatePlayers();
+}
   vowelMode=false;
   allowGuess=false;
   updatePlayers();
@@ -422,15 +430,17 @@ function buyVowel(){
   updatePlayers();
 }
 
-function solvePuzzle(){
-  const guess=document.getElementById("solveInput").value.toUpperCase().trim();
-  if(guess===movie){
-    players[currentPlayer].money+=20000;
-    alert(players[currentPlayer].name+" Wins!");
-    location.reload();
-  }else{
-    nextPlayer();
-  }
+function buyVowel(){
+
+  if(players[currentPlayer].money < 20000) return;
+  if(spinning) return;
+
+  players[currentPlayer].money -= 20000;
+
+  vowelMode=true;
+  allowGuess=true;
+
+  updatePlayers();
 }
 
 function nextPlayer(){
@@ -441,3 +451,4 @@ function nextPlayer(){
 </script>
 </body>
 </html>
+
