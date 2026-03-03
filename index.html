@@ -8,7 +8,7 @@
 body{
   margin:0;
   font-family:Arial;
-  background:radial-gradient(circle,#14002a,#000);
+  background:radial-gradient(circle,#120024,#000);
   color:white;
 }
 
@@ -16,7 +16,6 @@ body{
 #container{
   display:flex;
   justify-content:space-between;
-  align-items:flex-start;
   padding:20px 40px;
 }
 
@@ -62,7 +61,7 @@ body{
 
 .tile.reveal{
   background:#00aa66;
-  box-shadow:0 0 12px lime;
+  box-shadow:0 0 10px lime;
 }
 
 .blank{background:transparent;}
@@ -265,19 +264,11 @@ function createBoard(){
 function createLetters(){
   const grid=document.getElementById("letterGrid");
   grid.innerHTML="";
-
   for(let i=65;i<=90;i++){
     const letter=String.fromCharCode(i);
     const btn=document.createElement("button");
     btn.innerHTML=letter;
-
     btn.onclick=function(){guess(letter,btn);};
-
-    grid.appendChild(btn);
-  }
-}
-
-    btn.onclick=function(){guess(btn.innerHTML,btn);};
     grid.appendChild(btn);
   }
 }
@@ -371,13 +362,10 @@ function determineResult(){
 }
 
 function guess(letter,btn){
-
   if(!allowGuess) return;
 
-  // If vowel and not in vowel mode → block
-  if("AEIOU".includes(letter) && !vowelMode){
-    return;
-  }
+  // Block vowel if not purchased
+  if("AEIOU".includes(letter) && !vowelMode) return;
 
   if(btn.classList.contains("used")) return;
 
@@ -395,9 +383,8 @@ function guess(letter,btn){
   });
 
   if(found>0){
-    // Only add money for consonants
     if(!"AEIOU".includes(letter)){
-      players[currentPlayer].money += currentSpinValue * found;
+      players[currentPlayer].money+=currentSpinValue*found;
     }
   }else{
     nextPlayer();
@@ -405,42 +392,26 @@ function guess(letter,btn){
 
   vowelMode=false;
   allowGuess=false;
-
-  updatePlayers();
-}
-  vowelMode=false;
-  allowGuess=false;
   updatePlayers();
 }
 
 function buyVowel(){
-  if(players[currentPlayer].money < 20000) return;
-
-  players[currentPlayer].money -= 20000;
-  vowelMode = true;
-  allowGuess = true;
-
-  document.querySelectorAll("#letterGrid button").forEach(btn=>{
-    if("AEIOU".includes(btn.innerHTML) && !btn.classList.contains("used")){
-      btn.disabled = false;
-      btn.classList.remove("used");
-    }
-  });
-
-  updatePlayers();
-}
-
-function buyVowel(){
-
-  if(players[currentPlayer].money < 20000) return;
-  if(spinning) return;
-
-  players[currentPlayer].money -= 20000;
-
+  if(players[currentPlayer].money<20000) return;
+  players[currentPlayer].money-=20000;
   vowelMode=true;
   allowGuess=true;
-
   updatePlayers();
+}
+
+function solvePuzzle(){
+  const guess=document.getElementById("solveInput").value.toUpperCase().trim();
+  if(guess===movie){
+    players[currentPlayer].money+=20000;
+    alert(players[currentPlayer].name+" Wins!");
+    location.reload();
+  }else{
+    nextPlayer();
+  }
 }
 
 function nextPlayer(){
@@ -451,4 +422,3 @@ function nextPlayer(){
 </script>
 </body>
 </html>
-
