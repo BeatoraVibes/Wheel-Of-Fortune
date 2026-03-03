@@ -21,12 +21,12 @@ h2{
   display:flex;
   justify-content:space-evenly;
   align-items:flex-start;
-  height:65vh;
+  height:60vh;
 }
 
 /* BOARD */
 #boardFrame{
-  padding:15px;
+  padding:20px 25px;
   background:linear-gradient(45deg,#0f2027,#203a43,#2c5364);
   border:6px solid gold;
   border-radius:20px;
@@ -36,12 +36,12 @@ h2{
 .row{
   display:flex;
   justify-content:center;
-  margin:4px 0;
+  margin:6px 0;
 }
 
 .tile{
-  width:40px;
-  height:55px;
+  width:30px;          /* narrower */
+  height:65px;         /* taller */
   margin:3px;
   background:#003333;
   display:flex;
@@ -60,19 +60,33 @@ h2{
 
 .blank{background:transparent;}
 
-/* LETTER GRID */
+/* LETTER GRID - 7 PER ROW */
 #letterGrid{
-  text-align:center;
   margin-top:15px;
+  display:grid;
+  grid-template-columns:repeat(7, 48px);
+  justify-content:center;
+  gap:10px;
 }
 
 #letterGrid button{
-  width:45px;
-  height:45px;
-  margin:4px;
+  width:48px;
+  height:48px;
   font-size:18px;
   font-weight:bold;
+  background:#f5f5f5;
+  border:none;
+  border-radius:6px;
   cursor:pointer;
+  transition:0.2s;
+}
+
+/* Used letters dark */
+#letterGrid button.used{
+  background:#333;
+  color:#777;
+  cursor:not-allowed;
+  transform:scale(0.95);
 }
 
 /* WHEEL */
@@ -94,7 +108,7 @@ canvas{
 }
 
 .playerBox{
-  padding:8px;
+  padding:10px;
   border:2px solid white;
   border-radius:10px;
   width:140px;
@@ -139,7 +153,7 @@ button{
 </div>
 
 <div id="wheelSection">
-<canvas id="wheel" width="240" height="240"></canvas><br>
+<canvas id="wheel" width="220" height="220"></canvas><br>
 <button onclick="spinWheel()">🎡 Spin</button>
 <button onclick="buyVowel()">Buy Vowel ₹20000</button><br>
 <input type="text" id="solveInput" placeholder="Solve Full Puzzle">
@@ -165,7 +179,8 @@ let spinning=false;
 let currentSpinValue=0;
 let allowGuess=false;
 let vowelMode=false;
-const maxCols=12;
+
+const maxCols=10;
 
 const wheelItems=[
   10000,30000,50000,
@@ -258,6 +273,7 @@ function createLetters(){
 
     if("AEIOU".includes(btn.innerHTML)){
       btn.disabled=true;
+      btn.classList.add("used");
     }
 
     btn.onclick=function(){guess(btn.innerHTML,btn);};
@@ -301,30 +317,30 @@ function spinWheel(){
 
 function drawWheel(){
   const arc=2*Math.PI/wheelItems.length;
-  ctx.clearRect(0,0,240,240);
+  ctx.clearRect(0,0,220,220);
 
   wheelItems.forEach((item,i)=>{
     const start=angle+i*arc;
     ctx.beginPath();
     ctx.fillStyle=i%2?"orange":"gold";
-    ctx.moveTo(120,120);
-    ctx.arc(120,120,110,start,start+arc);
+    ctx.moveTo(110,110);
+    ctx.arc(110,110,100,start,start+arc);
     ctx.fill();
 
     ctx.save();
-    ctx.translate(120,120);
+    ctx.translate(110,110);
     ctx.rotate(start+arc/2);
     ctx.fillStyle="black";
-    ctx.font="bold 12px Arial";
-    ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,55,5);
+    ctx.font="bold 11px Arial";
+    ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,45,5);
     ctx.restore();
   });
 
   ctx.beginPath();
   ctx.fillStyle="white";
-  ctx.moveTo(120,5);
-  ctx.lineTo(110,25);
-  ctx.lineTo(130,25);
+  ctx.moveTo(110,5);
+  ctx.lineTo(100,25);
+  ctx.lineTo(120,25);
   ctx.fill();
 }
 
@@ -357,6 +373,8 @@ function guess(letter,btn){
   if(!allowGuess)return;
 
   btn.disabled=true;
+  btn.classList.add("used");
+
   let found=0;
 
   document.querySelectorAll(".tile").forEach(tile=>{
@@ -378,7 +396,6 @@ function guess(letter,btn){
   vowelMode=false;
   allowGuess=false;
   updatePlayers();
-  checkWin();
 }
 
 function buyVowel(){
@@ -390,6 +407,7 @@ function buyVowel(){
   document.querySelectorAll("#letterGrid button").forEach(btn=>{
     if("AEIOU".includes(btn.innerHTML)){
       btn.disabled=false;
+      btn.classList.remove("used");
     }
   });
 
@@ -410,21 +428,6 @@ function solvePuzzle(){
 function nextPlayer(){
   currentPlayer=(currentPlayer+1)%players.length;
   updatePlayers();
-}
-
-function checkWin(){
-  let solved=true;
-  document.querySelectorAll(".tile").forEach(tile=>{
-    if(tile.dataset.letter && tile.innerHTML==="_"){
-      solved=false;
-    }
-  });
-
-  if(solved){
-    players[currentPlayer].money+=20000;
-    alert(players[currentPlayer].name+" Wins!");
-    location.reload();
-  }
 }
 
 </script>
