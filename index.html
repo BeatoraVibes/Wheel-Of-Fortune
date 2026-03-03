@@ -91,13 +91,6 @@ body{
   cursor:not-allowed;
 }
 
-/* WHEEL */
-canvas{
-  background:#111;
-  border-radius:50%;
-  margin-bottom:10px;
-}
-
 /* PLAYERS */
 #players{
   margin-top:15px;
@@ -112,6 +105,12 @@ canvas{
 
 .active{
   border:3px solid yellow;
+}
+
+canvas{
+  background:#111;
+  border-radius:50%;
+  margin-bottom:10px;
 }
 
 button{
@@ -155,8 +154,7 @@ h2{
 <div id="rightSide">
 <canvas id="wheel" width="220" height="220"></canvas><br>
 <button onclick="spinWheel()">Spin</button>
-<button onclick="buyVowel()">Buy Vowel ₹20000</button><br>
-<input type="text" id="solveInput" placeholder="Solve Full Puzzle">
+<button onclick="buyVowel()">Buy Vowel ₹20000</button>
 <button onclick="solvePuzzle()">Solve</button>
 <div id="spinResult"></div>
 
@@ -176,6 +174,7 @@ let spinning=false;
 let currentSpinValue=0;
 let allowGuess=false;
 let vowelMode=false;
+let gameOver=false;
 
 const maxCols=10;
 
@@ -285,7 +284,7 @@ function updatePlayers(){
 }
 
 function spinWheel(){
-  if(spinning)return;
+  if(spinning || gameOver) return;
   spinning=true;
   allowGuess=false;
   vowelMode=false;
@@ -358,15 +357,14 @@ function determineResult(){
     currentSpinValue=result;
     allowGuess=true;
   }
+
   updatePlayers();
 }
 
 function guess(letter,btn){
-  if(!allowGuess) return;
+  if(!allowGuess || gameOver) return;
 
-  // Block vowel if not purchased
   if("AEIOU".includes(letter) && !vowelMode) return;
-
   if(btn.classList.contains("used")) return;
 
   btn.classList.add("used");
@@ -396,7 +394,8 @@ function guess(letter,btn){
 }
 
 function buyVowel(){
-  if(players[currentPlayer].money<20000) return;
+  if(players[currentPlayer].money<20000 || gameOver) return;
+
   players[currentPlayer].money-=20000;
   vowelMode=true;
   allowGuess=true;
@@ -404,14 +403,20 @@ function buyVowel(){
 }
 
 function solvePuzzle(){
-  const guess=document.getElementById("solveInput").value.toUpperCase().trim();
-  if(guess===movie){
-    players[currentPlayer].money+=20000;
-    alert(players[currentPlayer].name+" Wins!");
-    location.reload();
-  }else{
-    nextPlayer();
-  }
+  if(gameOver) return;
+
+  document.querySelectorAll(".tile").forEach(tile=>{
+    if(tile.dataset.letter){
+      tile.innerHTML=tile.dataset.letter;
+      tile.classList.add("reveal");
+    }
+  });
+
+  players[currentPlayer].money+=20000;
+  updatePlayers();
+
+  gameOver=true;
+  alert(players[currentPlayer].name+" Wins!");
 }
 
 function nextPlayer(){
