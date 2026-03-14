@@ -6,10 +6,6 @@
 
 <style>
 
-html{
-scroll-behavior:smooth;
-}
-
 body{
 margin:0;
 font-family:Arial;
@@ -19,19 +15,15 @@ font-size:14px;
 overflow-y:auto;
 }
 
-/* Layout */
-
 #container{
 display:flex;
 justify-content:space-between;
-padding:8px 35px;
+padding:10px 35px;
 flex-wrap:wrap;
 }
 
 #leftSide{width:60%;}
 #rightSide{width:35%;text-align:center;}
-
-/* Board */
 
 #boardFrame{
 padding:15px;
@@ -59,18 +51,14 @@ justify-content:center;
 font-size:20px;
 font-weight:bold;
 border-radius:4px;
-transition:transform .3s,background .3s;
 }
 
 .tile.reveal{
 background:#00aa66;
-transform:rotateY(360deg);
 box-shadow:0 0 8px lime;
 }
 
 .blank{background:transparent}
-
-/* Letters */
 
 #letterGrid{
 display:grid;
@@ -96,8 +84,6 @@ color:#777;
 cursor:not-allowed;
 }
 
-/* Players */
-
 .playerBox{
 padding:6px;
 border:2px solid white;
@@ -108,15 +94,12 @@ font-size:13px;
 
 .active{
 border:3px solid yellow;
-box-shadow:0 0 10px yellow;
 }
 
 .timer{
 font-size:12px;
 color:#ffd54f;
 }
-
-/* Wheel */
 
 canvas{
 background:#111;
@@ -125,27 +108,11 @@ margin-bottom:6px;
 }
 
 button{
-padding:5px 9px;
+padding:6px 10px;
 margin:4px;
 font-weight:bold;
 font-size:12px;
 cursor:pointer;
-}
-
-/* Confetti */
-
-.confetti{
-position:fixed;
-width:10px;
-height:10px;
-top:-10px;
-animation:fall 3s linear infinite;
-}
-
-@keyframes fall{
-to{
-transform:translateY(100vh) rotate(720deg);
-}
 }
 
 </style>
@@ -156,22 +123,26 @@ transform:translateY(100vh) rotate(720deg);
 <div id="setup" style="text-align:center;margin-top:10px;">
 
 <label>Mode:</label>
-<select id="modeSelect">
+<select id="modeSelect" onchange="toggleMode()">
 <option value="normal">Normal Mode</option>
 <option value="bonus">Bonus Round</option>
 </select>
 
-<br>
+<br><br>
 
-<input type="text" id="movieInput" placeholder="Enter Puzzle"><br>
+<input type="text" id="movieInput" placeholder="Enter Puzzle"><br><br>
 
-<select id="playerCount">
+<div id="playerSection">
+
+<select id="playerCount" onchange="generatePlayers()">
 <option value="1">1 Player</option>
 <option value="2">2 Players</option>
 <option value="3">3 Players</option>
 </select>
 
 <div id="playerInputs"></div>
+
+</div>
 
 <button onclick="startGame()">Start Game</button>
 
@@ -233,10 +204,21 @@ const wheelItems=[
 const canvas=document.getElementById("wheel");
 const ctx=canvas.getContext("2d");
 
-document.getElementById("playerCount").addEventListener("change",generatePlayerInputs);
-generatePlayerInputs();
+generatePlayers();
 
-function generatePlayerInputs(){
+function toggleMode(){
+
+let mode=document.getElementById("modeSelect").value;
+
+if(mode==="bonus"){
+document.getElementById("playerSection").style.display="none";
+}else{
+document.getElementById("playerSection").style.display="block";
+}
+
+}
+
+function generatePlayers(){
 
 const count=document.getElementById("playerCount").value;
 const container=document.getElementById("playerInputs");
@@ -244,9 +226,7 @@ const container=document.getElementById("playerInputs");
 container.innerHTML="";
 
 for(let i=1;i<=count;i++){
-
 container.innerHTML+=`<input type="text" placeholder="Player ${i} Name" id="p${i}"><br>`;
-
 }
 
 }
@@ -260,15 +240,25 @@ alert("Enter Puzzle");
 return;
 }
 
-const count=document.getElementById("playerCount").value;
+let mode=document.getElementById("modeSelect").value;
 
 players=[];
 
+if(mode==="normal"){
+
+const count=document.getElementById("playerCount").value;
+
 for(let i=1;i<=count;i++){
 
-let name=document.getElementById("p"+i).value||("Player "+i);
+let name=document.getElementById("p"+i).value || ("Player "+i);
 
 players.push({name:name,money:0,time:45});
+
+}
+
+}else{
+
+players.push({name:"Bonus Player",money:0,time:15});
 
 }
 
@@ -283,7 +273,7 @@ startTurnTimer();
 
 }
 
-/* TURN TIMER */
+/* TIMER */
 
 function startTurnTimer(){
 
@@ -298,9 +288,7 @@ players[currentPlayer].time--;
 updatePlayers();
 
 if(players[currentPlayer].time<=0){
-
 skipTurn();
-
 }
 
 },1000);
@@ -328,14 +316,10 @@ let line="";
 words.forEach(word=>{
 
 if((line+" "+word).trim().length<=maxCols){
-
 line=(line?line+" ":"")+word;
-
 }else{
-
 lines.push(line);
 line=word;
-
 }
 
 });
@@ -354,15 +338,248 @@ const tile=document.createElement("div");
 if(i<line.length){
 
 if(line[i]===" "){
-
 tile.className="tile blank";
-
 }else{
-
 tile.className="tile";
 tile.dataset.letter=line[i];
 tile.innerHTML="_";
+}
+
+}else{
+tile.className="tile blank";
+}
+
+row.appendChild(tile);
 
 }
 
-}else
+frame.appendChild(row);
+
+});
+
+}
+
+/* LETTERS */
+
+function createLetters(){
+
+const grid=document.getElementById("letterGrid");
+grid.innerHTML="";
+
+for(let i=65;i<=90;i++){
+
+const letter=String.fromCharCode(i);
+const btn=document.createElement("button");
+
+btn.innerHTML=letter;
+btn.onclick=function(){guess(letter,btn)};
+
+grid.appendChild(btn);
+
+}
+
+}
+
+/* PLAYERS */
+
+function updatePlayers(){
+
+const container=document.getElementById("players");
+container.innerHTML="";
+
+players.forEach((p,i)=>{
+
+container.innerHTML+=`
+<div class="playerBox ${i===currentPlayer?'active':''}">
+${p.name}<br>
+₹${p.money}<br>
+<span class="timer">⏱ ${p.time}s</span>
+</div>
+`;
+
+});
+
+}
+
+/* WHEEL */
+
+function spinWheel(){
+
+if(spinning||gameOver)return;
+
+spinning=true;
+allowGuess=false;
+vowelMode=false;
+
+let velocity=0.75;
+const friction=0.985;
+
+function animate(){
+
+angle+=velocity;
+velocity*=friction;
+
+drawWheel();
+
+if(velocity>0.01){
+requestAnimationFrame(animate);
+}else{
+spinning=false;
+determineResult();
+}
+
+}
+
+requestAnimationFrame(animate);
+
+}
+
+function drawWheel(){
+
+const arc=2*Math.PI/wheelItems.length;
+
+ctx.clearRect(0,0,200,200);
+
+wheelItems.forEach((item,i)=>{
+
+const start=angle+i*arc;
+
+ctx.beginPath();
+ctx.fillStyle=i%2?"orange":"gold";
+ctx.moveTo(100,100);
+ctx.arc(100,100,90,start,start+arc);
+ctx.fill();
+
+ctx.save();
+ctx.translate(100,100);
+ctx.rotate(start+arc/2);
+ctx.fillStyle="black";
+ctx.font="bold 10px Arial";
+ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,35,5);
+ctx.restore();
+
+});
+
+ctx.beginPath();
+ctx.fillStyle="white";
+ctx.moveTo(100,5);
+ctx.lineTo(90,22);
+ctx.lineTo(110,22);
+ctx.fill();
+
+}
+
+function determineResult(){
+
+const arc=2*Math.PI/wheelItems.length;
+
+let normalized=angle%(2*Math.PI);
+let pointer=3*Math.PI/2;
+
+let relative=pointer-normalized;
+
+if(relative<0)relative+=2*Math.PI;
+
+let index=Math.floor(relative/arc);
+
+let result=wheelItems[index];
+
+document.getElementById("spinResult").innerText="Result: "+result;
+
+if(result==="SNAKE"){
+players[currentPlayer].money=0;
+nextPlayer();
+}
+else if(result==="LOSE"){
+nextPlayer();
+}
+else{
+currentSpinValue=result;
+allowGuess=true;
+}
+
+updatePlayers();
+
+}
+
+/* GUESS */
+
+function guess(letter,btn){
+
+if(!allowGuess||gameOver)return;
+
+if("AEIOU".includes(letter)&&!vowelMode)return;
+
+btn.classList.add("used");
+btn.disabled=true;
+
+let found=0;
+
+document.querySelectorAll(".tile").forEach(tile=>{
+if(tile.dataset.letter===letter){
+tile.innerHTML=letter;
+tile.classList.add("reveal");
+found++;
+}
+});
+
+if(found>0){
+if(!"AEIOU".includes(letter)){
+players[currentPlayer].money+=currentSpinValue*found;
+}
+}else{
+nextPlayer();
+}
+
+vowelMode=false;
+allowGuess=false;
+
+updatePlayers();
+
+}
+
+function buyVowel(){
+
+if(players[currentPlayer].money<20000||gameOver)return;
+
+players[currentPlayer].money-=20000;
+
+vowelMode=true;
+allowGuess=true;
+
+updatePlayers();
+
+}
+
+function solvePuzzle(){
+
+document.querySelectorAll(".tile").forEach(tile=>{
+if(tile.dataset.letter){
+tile.innerHTML=tile.dataset.letter;
+tile.classList.add("reveal");
+}
+});
+
+players[currentPlayer].money+=20000;
+
+updatePlayers();
+
+alert(players[currentPlayer].name+" Wins!");
+
+gameOver=true;
+
+}
+
+function nextPlayer(){
+
+currentPlayer=(currentPlayer+1)%players.length;
+
+startTurnTimer();
+updatePlayers();
+
+}
+
+</script>
+
+</body>
+</html>
