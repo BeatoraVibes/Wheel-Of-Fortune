@@ -123,7 +123,7 @@ cursor:pointer;
 <div id="setup" style="text-align:center;margin-top:10px;">
 
 <label>Mode:</label>
-<select id="modeSelect" onchange="toggleMode()">
+<select id="modeSelect">
 <option value="normal">Normal Mode</option>
 <option value="bonus">Bonus Round</option>
 </select>
@@ -160,6 +160,8 @@ cursor:pointer;
 
 <div id="rightSide">
 
+<div id="normalControls">
+
 <canvas id="wheel" width="200" height="200"></canvas><br>
 
 <button onclick="spinWheel()">Spin</button>
@@ -168,6 +170,19 @@ cursor:pointer;
 <button onclick="skipTurn()">Skip Turn</button>
 
 <div id="spinResult"></div>
+
+</div>
+
+<div id="bonusControls" style="display:none">
+
+<h3>Bonus Round</h3>
+
+<button onclick="startBonusTimer()">Start 15s Timer</button>
+<button onclick="solvePuzzle()">Solve</button>
+
+<div id="bonusTimer"></div>
+
+</div>
 
 <div id="players"></div>
 
@@ -181,17 +196,20 @@ cursor:pointer;
 let movie="";
 let players=[];
 let currentPlayer=0;
+let mode="normal";
+
+let turnTimer=null;
+let bonusTimer=null;
+let bonusTime=15;
 
 let angle=0;
 let spinning=false;
 let currentSpinValue=0;
 let allowGuess=false;
 let vowelMode=false;
-let gameOver=false;
 
-let turnTimer=null;
-
-const maxCols=10;
+const canvas=document.getElementById("wheel");
+const ctx=canvas.getContext("2d");
 
 const wheelItems=[
 10000,30000,50000,
@@ -200,23 +218,6 @@ const wheelItems=[
 "LOSE",
 40000,80000,100000
 ];
-
-const canvas=document.getElementById("wheel");
-const ctx=canvas.getContext("2d");
-
-generatePlayers();
-
-function toggleMode(){
-
-let mode=document.getElementById("modeSelect").value;
-
-if(mode==="bonus"){
-document.getElementById("playerSection").style.display="none";
-}else{
-document.getElementById("playerSection").style.display="block";
-}
-
-}
 
 function generatePlayers(){
 
@@ -231,6 +232,8 @@ container.innerHTML+=`<input type="text" placeholder="Player ${i} Name" id="p${i
 
 }
 
+generatePlayers();
+
 function startGame(){
 
 movie=document.getElementById("movieInput").value.toUpperCase().trim();
@@ -240,7 +243,7 @@ alert("Enter Puzzle");
 return;
 }
 
-let mode=document.getElementById("modeSelect").value;
+mode=document.getElementById("modeSelect").value;
 
 players=[];
 
@@ -260,6 +263,9 @@ players.push({name:name,money:0,time:45});
 
 players.push({name:"Bonus Player",money:0,time:15});
 
+document.getElementById("normalControls").style.display="none";
+document.getElementById("bonusControls").style.display="block";
+
 }
 
 document.getElementById("setup").style.display="none";
@@ -268,98 +274,35 @@ document.getElementById("game").style.display="block";
 createBoard();
 createLetters();
 updatePlayers();
-drawWheel();
-startTurnTimer();
 
 }
-
-/* TIMER */
-
-function startTurnTimer(){
-
-clearInterval(turnTimer);
-
-players[currentPlayer].time=45;
-
-turnTimer=setInterval(()=>{
-
-players[currentPlayer].time--;
-
-updatePlayers();
-
-if(players[currentPlayer].time<=0){
-skipTurn();
-}
-
-},1000);
-
-}
-
-function skipTurn(){
-
-clearInterval(turnTimer);
-nextPlayer();
-
-}
-
-/* BOARD */
 
 function createBoard(){
 
 const frame=document.getElementById("boardFrame");
 frame.innerHTML="";
 
-let words=movie.split(" ");
-let lines=[];
-let line="";
-
-words.forEach(word=>{
-
-if((line+" "+word).trim().length<=maxCols){
-line=(line?line+" ":"")+word;
-}else{
-lines.push(line);
-line=word;
-}
-
-});
-
-if(line)lines.push(line);
-
-lines.forEach(line=>{
+movie.split(" ").forEach(word=>{
 
 const row=document.createElement("div");
 row.className="row";
 
-for(let i=0;i<maxCols;i++){
+word.split("").forEach(letter=>{
 
 const tile=document.createElement("div");
-
-if(i<line.length){
-
-if(line[i]===" "){
-tile.className="tile blank";
-}else{
 tile.className="tile";
-tile.dataset.letter=line[i];
+tile.dataset.letter=letter;
 tile.innerHTML="_";
-}
-
-}else{
-tile.className="tile blank";
-}
 
 row.appendChild(tile);
 
-}
+});
 
 frame.appendChild(row);
 
 });
 
 }
-
-/* LETTERS */
 
 function createLetters(){
 
@@ -380,7 +323,34 @@ grid.appendChild(btn);
 
 }
 
-/* PLAYERS */
+function startTurnTimer(){
+
+clearInterval(turnTimer);
+
+players[currentPlayer].time=45;
+
+turnTimer=setInterval(()=>{
+
+players[currentPlayer].time--;
+updatePlayers();
+
+if(players[currentPlayer].time<=0){
+skipTurn();
+}
+
+},1000);
+
+}
+
+function skipTurn(){
+
+clearInterval(turnTimer);
+
+currentPlayer=(currentPlayer+1)%players.length;
+
+updatePlayers();
+
+}
 
 function updatePlayers(){
 
@@ -393,7 +363,7 @@ container.innerHTML+=`
 <div class="playerBox ${i===currentPlayer?'active':''}">
 ${p.name}<br>
 ₹${p.money}<br>
-<span class="timer">⏱ ${p.time}s</span>
+<span class="timer">${p.time || ""}</span>
 </div>
 `;
 
@@ -405,11 +375,9 @@ ${p.name}<br>
 
 function spinWheel(){
 
-if(spinning||gameOver)return;
+if(spinning)return;
 
 spinning=true;
-allowGuess=false;
-vowelMode=false;
 
 let velocity=0.75;
 const friction=0.985;
@@ -488,14 +456,19 @@ document.getElementById("spinResult").innerText="Result: "+result;
 
 if(result==="SNAKE"){
 players[currentPlayer].money=0;
-nextPlayer();
+skipTurn();
 }
 else if(result==="LOSE"){
-nextPlayer();
+skipTurn();
 }
 else{
+
 currentSpinValue=result;
 allowGuess=true;
+
+/* START TIMER AFTER SPIN */
+startTurnTimer();
+
 }
 
 updatePlayers();
@@ -506,9 +479,7 @@ updatePlayers();
 
 function guess(letter,btn){
 
-if(!allowGuess||gameOver)return;
-
-if("AEIOU".includes(letter)&&!vowelMode)return;
+if(!allowGuess)return;
 
 btn.classList.add("used");
 btn.disabled=true;
@@ -516,48 +487,49 @@ btn.disabled=true;
 let found=0;
 
 document.querySelectorAll(".tile").forEach(tile=>{
+
 if(tile.dataset.letter===letter){
+
 tile.innerHTML=letter;
 tile.classList.add("reveal");
 found++;
+
 }
+
 });
 
 if(found>0){
-if(!"AEIOU".includes(letter)){
 players[currentPlayer].money+=currentSpinValue*found;
-}
 }else{
-nextPlayer();
+skipTurn();
 }
 
-vowelMode=false;
 allowGuess=false;
 
 updatePlayers();
 
 }
 
+/* VOWEL */
+
 function buyVowel(){
 
-if(players[currentPlayer].money<20000||gameOver)return;
+if(players[currentPlayer].money<20000)return;
 
 players[currentPlayer].money-=20000;
-
-vowelMode=true;
-allowGuess=true;
 
 updatePlayers();
 
 }
 
+/* SOLVE */
+
 function solvePuzzle(){
 
 document.querySelectorAll(".tile").forEach(tile=>{
-if(tile.dataset.letter){
+
 tile.innerHTML=tile.dataset.letter;
-tile.classList.add("reveal");
-}
+
 });
 
 players[currentPlayer].money+=20000;
@@ -566,16 +538,28 @@ updatePlayers();
 
 alert(players[currentPlayer].name+" Wins!");
 
-gameOver=true;
-
 }
 
-function nextPlayer(){
+/* BONUS TIMER */
 
-currentPlayer=(currentPlayer+1)%players.length;
+function startBonusTimer(){
 
-startTurnTimer();
-updatePlayers();
+bonusTime=15;
+
+document.getElementById("bonusTimer").innerText="15";
+
+bonusTimer=setInterval(()=>{
+
+bonusTime--;
+
+document.getElementById("bonusTimer").innerText=bonusTime;
+
+if(bonusTime<=0){
+clearInterval(bonusTimer);
+alert("Time Up!");
+}
+
+},1000);
 
 }
 
