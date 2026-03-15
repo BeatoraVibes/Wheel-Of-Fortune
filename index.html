@@ -81,24 +81,6 @@ background:#f5f5f5;
 #letterGrid button.used{
 background:#333;
 color:#777;
-cursor:not-allowed;
-}
-
-.playerBox{
-padding:6px;
-border:2px solid white;
-border-radius:10px;
-margin-bottom:6px;
-font-size:13px;
-}
-
-.active{
-border:3px solid yellow;
-}
-
-.timer{
-font-size:12px;
-color:#ffd54f;
 }
 
 canvas{
@@ -113,6 +95,12 @@ margin:4px;
 font-weight:bold;
 font-size:12px;
 cursor:pointer;
+}
+
+#bonusLetters button{
+width:40px;
+height:40px;
+margin:3px;
 }
 
 </style>
@@ -153,9 +141,26 @@ cursor:pointer;
 <div id="container">
 
 <div id="leftSide">
+
 <div id="boardFrame"></div>
+
 <div id="letterGrid"></div>
+
+<div id="bonusPanel" style="display:none">
+
+<h3>Select 3 Consonants + 1 Vowel</h3>
+
+<div id="bonusLetters"></div>
+
+<button onclick="applyBonusLetters()">OK</button>
+<button onclick="startBonusTimer()">Start 15s Timer</button>
+
+<div id="bonusTimer"></div>
+
+</div>
+
 <button onclick="location.reload()">Restart</button>
+
 </div>
 
 <div id="rightSide">
@@ -173,393 +178,234 @@ cursor:pointer;
 
 </div>
 
-<div id="bonusControls" style="display:none">
-
-<h3>Bonus Round</h3>
-
-<button onclick="startBonusTimer()">Start 15s Timer</button>
-<button onclick="solvePuzzle()">Solve</button>
-
-<div id="bonusTimer"></div>
-
-</div>
-
-<div id="players"></div>
-
 </div>
 
 </div>
+
 </div>
 
 <script>
 
-let movie="";
-let players=[];
-let currentPlayer=0;
-let mode="normal";
-
-let turnTimer=null;
-let bonusTimer=null;
-let bonusTime=15;
-
-let angle=0;
-let spinning=false;
-let currentSpinValue=0;
-let allowGuess=false;
-let vowelMode=false;
-
-const canvas=document.getElementById("wheel");
-const ctx=canvas.getContext("2d");
-
-const wheelItems=[
-10000,30000,50000,
-"SNAKE",
-20000,60000,
-"LOSE",
-40000,80000,100000
-];
+let movie=""
+let mode="normal"
+let selectedLetters=[]
+let vowelCount=0
+let consonantCount=0
+let bonusTime=15
+let bonusTimer=null
 
 function generatePlayers(){
 
-const count=document.getElementById("playerCount").value;
-const container=document.getElementById("playerInputs");
+const count=document.getElementById("playerCount").value
+const container=document.getElementById("playerInputs")
 
-container.innerHTML="";
+container.innerHTML=""
 
 for(let i=1;i<=count;i++){
-container.innerHTML+=`<input type="text" placeholder="Player ${i} Name" id="p${i}"><br>`;
+container.innerHTML+=`<input type="text" placeholder="Player ${i} Name"><br>`
 }
 
 }
 
-generatePlayers();
+generatePlayers()
 
 function startGame(){
 
-movie=document.getElementById("movieInput").value.toUpperCase().trim();
+movie=document.getElementById("movieInput").value.toUpperCase().trim()
 
 if(movie===""){
-alert("Enter Puzzle");
-return;
+alert("Enter Puzzle")
+return
 }
 
-mode=document.getElementById("modeSelect").value;
+mode=document.getElementById("modeSelect").value
 
-players=[];
+document.getElementById("setup").style.display="none"
+document.getElementById("game").style.display="block"
 
-if(mode==="normal"){
+createBoard()
 
-const count=document.getElementById("playerCount").value;
+if(mode==="bonus"){
 
-for(let i=1;i<=count;i++){
+document.getElementById("normalControls").style.display="none"
+document.getElementById("letterGrid").style.display="none"
+document.getElementById("bonusPanel").style.display="block"
 
-let name=document.getElementById("p"+i).value || ("Player "+i);
-
-players.push({name:name,money:0,time:45});
-
-}
+createBonusLetters()
 
 }else{
 
-players.push({name:"Bonus Player",money:0,time:15});
-
-document.getElementById("normalControls").style.display="none";
-document.getElementById("bonusControls").style.display="block";
+createLetters()
 
 }
-
-document.getElementById("setup").style.display="none";
-document.getElementById("game").style.display="block";
-
-createBoard();
-createLetters();
-updatePlayers();
 
 }
 
 function createBoard(){
 
-const frame=document.getElementById("boardFrame");
-frame.innerHTML="";
+const frame=document.getElementById("boardFrame")
+frame.innerHTML=""
 
 movie.split(" ").forEach(word=>{
 
-const row=document.createElement("div");
-row.className="row";
+const row=document.createElement("div")
+row.className="row"
 
 word.split("").forEach(letter=>{
 
-const tile=document.createElement("div");
-tile.className="tile";
-tile.dataset.letter=letter;
-tile.innerHTML="_";
+const tile=document.createElement("div")
+tile.className="tile"
+tile.dataset.letter=letter
+tile.innerHTML="_"
 
-row.appendChild(tile);
+row.appendChild(tile)
 
-});
+})
 
-frame.appendChild(row);
+frame.appendChild(row)
 
-});
+})
 
 }
 
 function createLetters(){
 
-const grid=document.getElementById("letterGrid");
-grid.innerHTML="";
+const grid=document.getElementById("letterGrid")
+grid.innerHTML=""
 
 for(let i=65;i<=90;i++){
 
-const letter=String.fromCharCode(i);
-const btn=document.createElement("button");
+let letter=String.fromCharCode(i)
 
-btn.innerHTML=letter;
-btn.onclick=function(){guess(letter,btn)};
+let btn=document.createElement("button")
+btn.innerText=letter
 
-grid.appendChild(btn);
+btn.onclick=function(){guessLetter(letter,btn)}
 
-}
-
-}
-
-function startTurnTimer(){
-
-clearInterval(turnTimer);
-
-players[currentPlayer].time=45;
-
-turnTimer=setInterval(()=>{
-
-players[currentPlayer].time--;
-updatePlayers();
-
-if(players[currentPlayer].time<=0){
-skipTurn();
-}
-
-},1000);
+grid.appendChild(btn)
 
 }
 
-function skipTurn(){
+}
 
-clearInterval(turnTimer);
+function guessLetter(letter,btn){
 
-currentPlayer=(currentPlayer+1)%players.length;
+btn.classList.add("used")
 
-updatePlayers();
+document.querySelectorAll(".tile").forEach(tile=>{
+
+if(tile.dataset.letter===letter){
+tile.innerHTML=letter
+tile.classList.add("reveal")
+}
+
+})
 
 }
 
-function updatePlayers(){
+function createBonusLetters(){
 
-const container=document.getElementById("players");
-container.innerHTML="";
+const container=document.getElementById("bonusLetters")
 
-players.forEach((p,i)=>{
+for(let i=65;i<=90;i++){
 
-container.innerHTML+=`
-<div class="playerBox ${i===currentPlayer?'active':''}">
-${p.name}<br>
-₹${p.money}<br>
-<span class="timer">${p.time || ""}</span>
-</div>
-`;
+let letter=String.fromCharCode(i)
 
-});
+let btn=document.createElement("button")
+btn.innerText=letter
 
+btn.onclick=function(){
+
+if(selectedLetters.includes(letter)) return
+
+if("AEIOU".includes(letter)){
+
+if(vowelCount>=1){
+alert("Only 1 vowel allowed")
+return
 }
 
-/* WHEEL */
+vowelCount++
 
-function spinWheel(){
-
-if(spinning)return;
-
-spinning=true;
-
-let velocity=0.75;
-const friction=0.985;
-
-function animate(){
-
-angle+=velocity;
-velocity*=friction;
-
-drawWheel();
-
-if(velocity>0.01){
-requestAnimationFrame(animate);
 }else{
-spinning=false;
-determineResult();
+
+if(consonantCount>=3){
+alert("Only 3 consonants allowed")
+return
+}
+
+consonantCount++
+
+}
+
+selectedLetters.push(letter)
+
+btn.style.background="lime"
+
+}
+
+container.appendChild(btn)
+
 }
 
 }
 
-requestAnimationFrame(animate);
+function applyBonusLetters(){
 
+if(selectedLetters.length!==4){
+alert("Choose exactly 4 letters")
+return
 }
 
-function drawWheel(){
-
-const arc=2*Math.PI/wheelItems.length;
-
-ctx.clearRect(0,0,200,200);
-
-wheelItems.forEach((item,i)=>{
-
-const start=angle+i*arc;
-
-ctx.beginPath();
-ctx.fillStyle=i%2?"orange":"gold";
-ctx.moveTo(100,100);
-ctx.arc(100,100,90,start,start+arc);
-ctx.fill();
-
-ctx.save();
-ctx.translate(100,100);
-ctx.rotate(start+arc/2);
-ctx.fillStyle="black";
-ctx.font="bold 10px Arial";
-ctx.fillText(item==="SNAKE"?"🐍":item==="LOSE"?"❌":"₹"+item,35,5);
-ctx.restore();
-
-});
-
-ctx.beginPath();
-ctx.fillStyle="white";
-ctx.moveTo(100,5);
-ctx.lineTo(90,22);
-ctx.lineTo(110,22);
-ctx.fill();
-
-}
-
-function determineResult(){
-
-const arc=2*Math.PI/wheelItems.length;
-
-let normalized=angle%(2*Math.PI);
-let pointer=3*Math.PI/2;
-
-let relative=pointer-normalized;
-
-if(relative<0)relative+=2*Math.PI;
-
-let index=Math.floor(relative/arc);
-
-let result=wheelItems[index];
-
-document.getElementById("spinResult").innerText="Result: "+result;
-
-if(result==="SNAKE"){
-players[currentPlayer].money=0;
-skipTurn();
-}
-else if(result==="LOSE"){
-skipTurn();
-}
-else{
-
-currentSpinValue=result;
-allowGuess=true;
-
-/* START TIMER AFTER SPIN */
-startTurnTimer();
-
-}
-
-updatePlayers();
-
-}
-
-/* GUESS */
-
-function guess(letter,btn){
-
-if(!allowGuess)return;
-
-btn.classList.add("used");
-btn.disabled=true;
-
-let found=0;
+selectedLetters.forEach(letter=>{
 
 document.querySelectorAll(".tile").forEach(tile=>{
 
 if(tile.dataset.letter===letter){
 
-tile.innerHTML=letter;
-tile.classList.add("reveal");
-found++;
+tile.innerHTML=letter
+tile.classList.add("reveal")
 
 }
 
-});
+})
 
-if(found>0){
-players[currentPlayer].money+=currentSpinValue*found;
-}else{
-skipTurn();
-}
-
-allowGuess=false;
-
-updatePlayers();
+})
 
 }
 
-/* VOWEL */
+function startBonusTimer(){
 
-function buyVowel(){
+bonusTime=15
 
-if(players[currentPlayer].money<20000)return;
+document.getElementById("bonusTimer").innerText="15"
 
-players[currentPlayer].money-=20000;
+bonusTimer=setInterval(()=>{
 
-updatePlayers();
+bonusTime--
+
+document.getElementById("bonusTimer").innerText=bonusTime
+
+if(bonusTime<=0){
+
+clearInterval(bonusTimer)
+alert("Time Up!")
 
 }
 
-/* SOLVE */
+},1000)
+
+}
 
 function solvePuzzle(){
 
 document.querySelectorAll(".tile").forEach(tile=>{
 
-tile.innerHTML=tile.dataset.letter;
+tile.innerHTML=tile.dataset.letter
 
-});
+})
 
-players[currentPlayer].money+=20000;
-
-updatePlayers();
-
-alert(players[currentPlayer].name+" Wins!");
-
-}
-
-/* BONUS TIMER */
-
-function startBonusTimer(){
-
-bonusTime=15;
-
-document.getElementById("bonusTimer").innerText="15";
-
-bonusTimer=setInterval(()=>{
-
-bonusTime--;
-
-document.getElementById("bonusTimer").innerText=bonusTime;
-
-if(bonusTime<=0){
-clearInterval(bonusTimer);
-alert("Time Up!");
-}
-
-},1000);
+alert("Puzzle Solved!")
 
 }
 
