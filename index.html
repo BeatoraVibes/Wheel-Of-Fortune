@@ -13,6 +13,11 @@ background:radial-gradient(circle,#120024,#000);
 color:white;
 }
 
+#setup{
+text-align:center;
+margin-top:20px;
+}
+
 #container{
 display:flex;
 justify-content:space-between;
@@ -99,9 +104,18 @@ border:3px solid yellow;
 
 <body>
 
-<div id="setup" style="text-align:center;margin-top:10px">
+<div id="setup">
+
+<select id="modeSelect" onchange="toggleMode()">
+<option value="normal">Normal Round</option>
+<option value="bonus">Bonus Round</option>
+</select>
+
+<br><br>
 
 <input type="text" id="movieInput" placeholder="Enter Puzzle"><br><br>
+
+<div id="playerSection">
 
 <select id="playerCount" onchange="generatePlayers()">
 <option value="1">1 Player</option>
@@ -110,6 +124,8 @@ border:3px solid yellow;
 </select>
 
 <div id="playerInputs"></div>
+
+</div>
 
 <button onclick="startGame()">Start Game</button>
 
@@ -156,6 +172,8 @@ let movie=""
 let players=[]
 let currentPlayer=0
 let vowelMode=false
+let mode="normal"
+
 let angle=0
 let spinning=false
 let currentSpinValue=0
@@ -168,6 +186,18 @@ const canvas=document.getElementById("wheel")
 const ctx=canvas.getContext("2d")
 
 generatePlayers()
+
+function toggleMode(){
+
+mode=document.getElementById("modeSelect").value
+
+if(mode==="bonus"){
+document.getElementById("playerSection").style.display="none"
+}else{
+document.getElementById("playerSection").style.display="block"
+}
+
+}
 
 function generatePlayers(){
 
@@ -184,6 +214,8 @@ container.innerHTML+=`<input type="text" id="p${i}" placeholder="Player ${i} Nam
 
 function startGame(){
 
+mode=document.getElementById("modeSelect").value
+
 movie=document.getElementById("movieInput").value.toUpperCase().trim()
 
 document.getElementById("setup").style.display="none"
@@ -191,6 +223,8 @@ document.getElementById("game").style.display="block"
 
 createBoard()
 createLetters()
+
+if(mode==="normal"){
 
 players=[]
 
@@ -204,6 +238,8 @@ players.push({name:name,money:0})
 }
 
 updatePlayers()
+
+}
 
 drawWheel()
 
