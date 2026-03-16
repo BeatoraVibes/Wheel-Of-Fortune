@@ -11,14 +11,12 @@ margin:0;
 font-family:Arial;
 background:radial-gradient(circle,#120024,#000);
 color:white;
-overflow-y:auto;
 }
 
 #container{
 display:flex;
 justify-content:space-between;
 padding:15px;
-flex-wrap:wrap;
 }
 
 #leftSide{width:60%;}
@@ -98,7 +96,7 @@ border:3px solid yellow;
 
 <div id="setup" style="text-align:center;margin-top:10px">
 
-<select id="modeSelect" onchange="toggleMode()">
+<select id="modeSelect">
 <option value="normal">Normal Mode</option>
 <option value="bonus">Bonus Round</option>
 </select>
@@ -134,20 +132,6 @@ border:3px solid yellow;
 
 <div id="letterGrid"></div>
 
-<div id="bonusPanel" style="display:none">
-
-<h3>Choose 3 Consonants + 1 Vowel</h3>
-
-<div id="bonusLetters"></div>
-
-<button onclick="applyBonusLetters()">OK</button>
-<button onclick="startBonusTimer()">Start 15s Timer</button>
-<button onclick="solvePuzzle()">Solve</button>
-
-<div id="bonusTimer"></div>
-
-</div>
-
 <button onclick="location.reload()">Restart</button>
 
 </div>
@@ -177,19 +161,12 @@ border:3px solid yellow;
 let movie=""
 let players=[]
 let currentPlayer=0
-let mode="normal"
-
+let vowelMode=false
 let angle=0
 let spinning=false
 let currentSpinValue=0
-let vowelMode=false
 
-let turnTimer=null
-let timeLeft=45
-
-let selectedLetters=[]
-let vowelCount=0
-let consonantCount=0
+const maxCols=10
 
 const wheelItems=[10000,20000,30000,40000,"SNAKE",50000,60000,"LOSE",70000,80000]
 
@@ -197,18 +174,6 @@ const canvas=document.getElementById("wheel")
 const ctx=canvas.getContext("2d")
 
 generatePlayers()
-
-function toggleMode(){
-
-mode=document.getElementById("modeSelect").value
-
-if(mode==="bonus"){
-document.getElementById("playerSection").style.display="none"
-}else{
-document.getElementById("playerSection").style.display="block"
-}
-
-}
 
 function generatePlayers(){
 
@@ -227,26 +192,14 @@ function startGame(){
 
 movie=document.getElementById("movieInput").value.toUpperCase()
 
-mode=document.getElementById("modeSelect").value
-
 document.getElementById("setup").style.display="none"
 document.getElementById("game").style.display="block"
 
 createBoard()
-
-if(mode==="bonus"){
-
-document.getElementById("letterGrid").style.display="none"
-document.getElementById("bonusPanel").style.display="block"
-
-autoFillRSTLNE()
-createBonusLetters()
-
-}else{
-
 createLetters()
 
 players=[]
+
 let count=document.getElementById("playerCount").value
 
 for(let i=1;i<=count;i++){
@@ -258,32 +211,68 @@ players.push({name:name,money:0})
 
 updatePlayers()
 
-}
-
 drawWheel()
 
 }
 
 function createBoard(){
 
-let frame=document.getElementById("boardFrame")
+const frame=document.getElementById("boardFrame")
 frame.innerHTML=""
 
-movie.split(" ").forEach(word=>{
+let words=movie.split(" ")
+let lines=[]
+let line=""
+
+words.forEach(word=>{
+
+if((line+" "+word).trim().length<=maxCols){
+
+line=(line?line+" ":"")+word
+
+}else{
+
+lines.push(line)
+line=word
+
+}
+
+})
+
+if(line)lines.push(line)
+
+lines.forEach(line=>{
 
 let row=document.createElement("div")
 row.className="row"
 
-word.split("").forEach(letter=>{
+for(let i=0;i<maxCols;i++){
 
 let tile=document.createElement("div")
+
+if(i<line.length){
+
+if(line[i]==" "){
+
+tile.className="tile blank"
+
+}else{
+
 tile.className="tile"
-tile.dataset.letter=letter
+tile.dataset.letter=line[i]
 tile.innerHTML="_"
+
+}
+
+}else{
+
+tile.className="tile blank"
+
+}
 
 row.appendChild(tile)
 
-})
+}
 
 frame.appendChild(row)
 
@@ -337,8 +326,10 @@ found++
 if(found>0){
 
 if(!"AEIOU".includes(letter)){
+
 players[currentPlayer].money += currentSpinValue * found
 updatePlayers()
+
 }
 
 }else{
@@ -386,7 +377,24 @@ document.querySelectorAll(".tile").forEach(tile=>{
 tile.innerHTML=tile.dataset.letter
 })
 
-alert("Puzzle solved!")
+alert("Solved!")
+
+}
+
+function updatePlayers(){
+
+let container=document.getElementById("players")
+container.innerHTML=""
+
+players.forEach((p,i)=>{
+
+container.innerHTML+=`
+<div class="playerBox ${i===currentPlayer?'active':''}">
+${p.name}<br>₹${p.money}
+</div>
+`
+
+})
 
 }
 
@@ -444,10 +452,14 @@ velocity*=friction
 drawWheel()
 
 if(velocity>0.01){
+
 requestAnimationFrame(animate)
+
 }else{
+
 spinning=false
 determineSpin()
+
 }
 
 }
@@ -473,135 +485,6 @@ let result=wheelItems[index]
 document.getElementById("spinResult").innerText="Result: "+result
 
 currentSpinValue=result
-
-startTurnTimer()
-
-}
-
-function startTurnTimer(){
-
-clearInterval(turnTimer)
-
-timeLeft=45
-
-turnTimer=setInterval(()=>{
-
-timeLeft--
-
-if(timeLeft<=0){
-
-clearInterval(turnTimer)
-nextPlayer()
-
-}
-
-},1000)
-
-}
-
-/* BONUS ROUND */
-
-function autoFillRSTLNE(){
-
-let letters=["R","S","T","L","N","E"]
-
-letters.forEach(letter=>{
-
-document.querySelectorAll(".tile").forEach(tile=>{
-
-if(tile.dataset.letter===letter){
-
-tile.innerHTML=letter
-tile.classList.add("reveal")
-
-}
-
-})
-
-})
-
-}
-
-function createBonusLetters(){
-
-let container=document.getElementById("bonusLetters")
-
-for(let i=65;i<=90;i++){
-
-let letter=String.fromCharCode(i)
-
-let btn=document.createElement("button")
-btn.innerText=letter
-
-btn.onclick=function(){
-
-if(selectedLetters.includes(letter))return
-
-if("AEIOU".includes(letter)){
-
-if(vowelCount>=1){alert("Only 1 vowel");return}
-vowelCount++
-
-}else{
-
-if(consonantCount>=3){alert("Only 3 consonants");return}
-consonantCount++
-
-}
-
-selectedLetters.push(letter)
-btn.style.background="lime"
-
-}
-
-container.appendChild(btn)
-
-}
-
-}
-
-function applyBonusLetters(){
-
-if(selectedLetters.length!==4){
-alert("Choose 3 consonants + 1 vowel")
-return
-}
-
-selectedLetters.forEach(letter=>{
-
-document.querySelectorAll(".tile").forEach(tile=>{
-
-if(tile.dataset.letter===letter){
-tile.innerHTML=letter
-tile.classList.add("reveal")
-}
-
-})
-
-})
-
-}
-
-function startBonusTimer(){
-
-let time=15
-
-document.getElementById("bonusTimer").innerText=time
-
-let timer=setInterval(()=>{
-
-time--
-
-document.getElementById("bonusTimer").innerText=time
-
-if(time<=0){
-
-clearInterval(timer)
-alert("Time Up")
-
-}
-
-},1000)
 
 }
 
