@@ -98,7 +98,7 @@ border:3px solid yellow;
 
 <div id="setup" style="text-align:center;margin-top:10px">
 
-<select id="modeSelect">
+<select id="modeSelect" onchange="toggleMode()">
 <option value="normal">Normal Mode</option>
 <option value="bonus">Bonus Round</option>
 </select>
@@ -107,6 +107,8 @@ border:3px solid yellow;
 
 <input type="text" id="movieInput" placeholder="Enter Puzzle"><br><br>
 
+<div id="playerSection">
+
 <select id="playerCount" onchange="generatePlayers()">
 <option value="1">1 Player</option>
 <option value="2">2 Players</option>
@@ -114,6 +116,8 @@ border:3px solid yellow;
 </select>
 
 <div id="playerInputs"></div>
+
+</div>
 
 <button onclick="startGame()">Start Game</button>
 
@@ -132,7 +136,7 @@ border:3px solid yellow;
 
 <div id="bonusPanel" style="display:none">
 
-<h3>Select 3 Consonants + 1 Vowel</h3>
+<h3>Choose 3 Consonants + 1 Vowel</h3>
 
 <div id="bonusLetters"></div>
 
@@ -175,23 +179,36 @@ let players=[]
 let currentPlayer=0
 let mode="normal"
 
-let turnTimer=null
-let timeLeft=45
-
 let angle=0
 let spinning=false
 let currentSpinValue=0
+let vowelMode=false
+
+let turnTimer=null
+let timeLeft=45
 
 let selectedLetters=[]
 let vowelCount=0
 let consonantCount=0
 
-const wheelItems=[100000,10000,30000,40000,"SNAKE",50000,60000,"LOSE",70000,80000]
+const wheelItems=[10000,20000,30000,40000,"SNAKE",50000,60000,"LOSE",70000,80000]
 
 const canvas=document.getElementById("wheel")
 const ctx=canvas.getContext("2d")
 
 generatePlayers()
+
+function toggleMode(){
+
+mode=document.getElementById("modeSelect").value
+
+if(mode==="bonus"){
+document.getElementById("playerSection").style.display="none"
+}else{
+document.getElementById("playerSection").style.display="block"
+}
+
+}
 
 function generatePlayers(){
 
@@ -223,22 +240,19 @@ document.getElementById("letterGrid").style.display="none"
 document.getElementById("bonusPanel").style.display="block"
 
 autoFillRSTLNE()
-
 createBonusLetters()
 
 }else{
 
 createLetters()
 
-let count=document.getElementById("playerCount").value
-
 players=[]
+let count=document.getElementById("playerCount").value
 
 for(let i=1;i<=count;i++){
 
 let name=document.getElementById("p"+i).value || "Player "+i
-
-players.push({name:name,money:0,time:45})
+players.push({name:name,money:0})
 
 }
 
@@ -277,7 +291,6 @@ frame.appendChild(row)
 
 }
 
-
 function createLetters(){
 
 let grid=document.getElementById("letterGrid")
@@ -300,92 +313,14 @@ grid.appendChild(btn)
 
 function guessLetter(letter,btn){
 
-btn.disabled=true
-
-document.querySelectorAll(".tile").forEach(tile=>{
-
-if(tile.dataset.letter===letter){
-
-tile.innerHTML=letter
-tile.classList.add("reveal")
-
-}
-
-})
-
-}
-
-
-function autoFillRSTLNE(){
-
-let letters=["R","S","T","L","N","E"]
-
-letters.forEach(letter=>{
-
-document.querySelectorAll(".tile").forEach(tile=>{
-
-if(tile.dataset.letter===letter){
-
-tile.innerHTML=letter
-tile.classList.add("reveal")
-
-}
-
-})
-
-})
-
-}
-
-function createBonusLetters(){
-
-let container=document.getElementById("bonusLetters")
-
-for(let i=65;i<=90;i++){
-
-let letter=String.fromCharCode(i)
-
-let btn=document.createElement("button")
-btn.innerText=letter
-
-btn.onclick=function(){
-
-if(selectedLetters.includes(letter))return
-
-if("AEIOU".includes(letter)){
-
-if(vowelCount>=1){alert("Only 1 vowel");return}
-
-vowelCount++
-
-}else{
-
-if(consonantCount>=3){alert("Only 3 consonants");return}
-
-consonantCount++
-
-}
-
-selectedLetters.push(letter)
-
-btn.style.background="lime"
-
-}
-
-container.appendChild(btn)
-
-}
-
-}
-
-function applyBonusLetters(){
-
-if(selectedLetters.length!==4){
-alert("Choose 3 consonants and 1 vowel")
+if("AEIOU".includes(letter) && !vowelMode){
+alert("Buy vowel first")
 return
 }
 
-selectedLetters.forEach(letter=>{
+btn.disabled=true
+
+let found=0
 
 document.querySelectorAll(".tile").forEach(tile=>{
 
@@ -393,61 +328,56 @@ if(tile.dataset.letter===letter){
 
 tile.innerHTML=letter
 tile.classList.add("reveal")
+found++
 
 }
 
 })
 
-})
+if(found>0){
+
+if(!"AEIOU".includes(letter)){
+players[currentPlayer].money += currentSpinValue * found
+updatePlayers()
+}
+
+}else{
+
+nextPlayer()
 
 }
 
-function startBonusTimer(){
-
-let time=15
-
-document.getElementById("bonusTimer").innerText=time
-
-let timer=setInterval(()=>{
-
-time--
-
-document.getElementById("bonusTimer").innerText=time
-
-if(time<=0){
-
-clearInterval(timer)
-alert("Time Up")
+vowelMode=false
 
 }
 
-},1000)
+function buyVowel(){
+
+if(players[currentPlayer].money<20000){
+alert("Not enough money")
+return
+}
+
+players[currentPlayer].money-=20000
+vowelMode=true
+updatePlayers()
 
 }
 
-function updatePlayers(){
+function nextPlayer(){
 
-let container=document.getElementById("players")
-container.innerHTML=""
+currentPlayer++
 
-players.forEach((p,i)=>{
+if(currentPlayer>=players.length){
+currentPlayer=0
+}
 
-container.innerHTML+=`
-<div class="playerBox ${i===currentPlayer?'active':''}">
-${p.name}<br>₹${p.money}
-</div>
-`
-
-})
+updatePlayers()
 
 }
 
 function skipTurn(){
-
-currentPlayer=(currentPlayer+1)%players.length
-
-updatePlayers()
-
+nextPlayer()
 }
 
 function solvePuzzle(){
@@ -456,7 +386,7 @@ document.querySelectorAll(".tile").forEach(tile=>{
 tile.innerHTML=tile.dataset.letter
 })
 
-alert("Solved!")
+alert("Puzzle solved!")
 
 }
 
@@ -514,14 +444,10 @@ velocity*=friction
 drawWheel()
 
 if(velocity>0.01){
-
 requestAnimationFrame(animate)
-
 }else{
-
 spinning=false
 determineSpin()
-
 }
 
 }
@@ -535,9 +461,7 @@ function determineSpin(){
 const arc=2*Math.PI/wheelItems.length
 
 let normalized=angle%(2*Math.PI)
-
 let pointer=3*Math.PI/2
-
 let relative=pointer-normalized
 
 if(relative<0)relative+=2*Math.PI
@@ -567,7 +491,113 @@ timeLeft--
 if(timeLeft<=0){
 
 clearInterval(turnTimer)
-skipTurn()
+nextPlayer()
+
+}
+
+},1000)
+
+}
+
+/* BONUS ROUND */
+
+function autoFillRSTLNE(){
+
+let letters=["R","S","T","L","N","E"]
+
+letters.forEach(letter=>{
+
+document.querySelectorAll(".tile").forEach(tile=>{
+
+if(tile.dataset.letter===letter){
+
+tile.innerHTML=letter
+tile.classList.add("reveal")
+
+}
+
+})
+
+})
+
+}
+
+function createBonusLetters(){
+
+let container=document.getElementById("bonusLetters")
+
+for(let i=65;i<=90;i++){
+
+let letter=String.fromCharCode(i)
+
+let btn=document.createElement("button")
+btn.innerText=letter
+
+btn.onclick=function(){
+
+if(selectedLetters.includes(letter))return
+
+if("AEIOU".includes(letter)){
+
+if(vowelCount>=1){alert("Only 1 vowel");return}
+vowelCount++
+
+}else{
+
+if(consonantCount>=3){alert("Only 3 consonants");return}
+consonantCount++
+
+}
+
+selectedLetters.push(letter)
+btn.style.background="lime"
+
+}
+
+container.appendChild(btn)
+
+}
+
+}
+
+function applyBonusLetters(){
+
+if(selectedLetters.length!==4){
+alert("Choose 3 consonants + 1 vowel")
+return
+}
+
+selectedLetters.forEach(letter=>{
+
+document.querySelectorAll(".tile").forEach(tile=>{
+
+if(tile.dataset.letter===letter){
+tile.innerHTML=letter
+tile.classList.add("reveal")
+}
+
+})
+
+})
+
+}
+
+function startBonusTimer(){
+
+let time=15
+
+document.getElementById("bonusTimer").innerText=time
+
+let timer=setInterval(()=>{
+
+time--
+
+document.getElementById("bonusTimer").innerText=time
+
+if(time<=0){
+
+clearInterval(timer)
+alert("Time Up")
 
 }
 
