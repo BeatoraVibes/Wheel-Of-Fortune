@@ -37,8 +37,8 @@ margin:5px;
 }
 
 .tile{
-width:30px;
-height:50px;
+width:32px;
+height:48px;
 margin:3px;
 background:#003333;
 display:flex;
@@ -47,6 +47,10 @@ justify-content:center;
 font-size:22px;
 font-weight:bold;
 border-radius:4px;
+}
+
+.tile.blank{
+background:transparent;
 }
 
 .tile.reveal{
@@ -70,6 +74,7 @@ button{
 margin:5px;
 padding:6px 10px;
 font-weight:bold;
+cursor:pointer;
 }
 
 canvas{
@@ -96,16 +101,7 @@ border:3px solid yellow;
 
 <div id="setup" style="text-align:center;margin-top:10px">
 
-<select id="modeSelect">
-<option value="normal">Normal Mode</option>
-<option value="bonus">Bonus Round</option>
-</select>
-
-<br><br>
-
 <input type="text" id="movieInput" placeholder="Enter Puzzle"><br><br>
-
-<div id="playerSection">
 
 <select id="playerCount" onchange="generatePlayers()">
 <option value="1">1 Player</option>
@@ -114,8 +110,6 @@ border:3px solid yellow;
 </select>
 
 <div id="playerInputs"></div>
-
-</div>
 
 <button onclick="startGame()">Start Game</button>
 
@@ -190,7 +184,7 @@ container.innerHTML+=`<input type="text" id="p${i}" placeholder="Player ${i} Nam
 
 function startGame(){
 
-movie=document.getElementById("movieInput").value.toUpperCase()
+movie=document.getElementById("movieInput").value.toUpperCase().trim()
 
 document.getElementById("setup").style.display="none"
 document.getElementById("game").style.display="block"
@@ -227,21 +221,17 @@ let line=""
 words.forEach(word=>{
 
 if((line+" "+word).trim().length<=maxCols){
-
 line=(line?line+" ":"")+word
-
 }else{
-
 lines.push(line)
 line=word
-
 }
 
 })
 
-if(line)lines.push(line)
+if(line) lines.push(line)
 
-lines.forEach(line=>{
+lines.forEach(textLine=>{
 
 let row=document.createElement("div")
 row.className="row"
@@ -250,24 +240,20 @@ for(let i=0;i<maxCols;i++){
 
 let tile=document.createElement("div")
 
-if(i<line.length){
+if(i<textLine.length){
 
-if(line[i]==" "){
+let char=textLine[i]
 
+if(char===" "){
 tile.className="tile blank"
-
 }else{
-
 tile.className="tile"
-tile.dataset.letter=line[i]
+tile.dataset.letter=char
 tile.innerHTML="_"
-
 }
 
 }else{
-
 tile.className="tile blank"
-
 }
 
 row.appendChild(tile)
@@ -314,11 +300,9 @@ let found=0
 document.querySelectorAll(".tile").forEach(tile=>{
 
 if(tile.dataset.letter===letter){
-
 tile.innerHTML=letter
 tile.classList.add("reveal")
 found++
-
 }
 
 })
@@ -326,16 +310,12 @@ found++
 if(found>0){
 
 if(!"AEIOU".includes(letter)){
-
 players[currentPlayer].money += currentSpinValue * found
 updatePlayers()
-
 }
 
 }else{
-
 nextPlayer()
-
 }
 
 vowelMode=false
@@ -374,7 +354,9 @@ nextPlayer()
 function solvePuzzle(){
 
 document.querySelectorAll(".tile").forEach(tile=>{
+if(tile.dataset.letter){
 tile.innerHTML=tile.dataset.letter
+}
 })
 
 alert("Solved!")
@@ -452,14 +434,10 @@ velocity*=friction
 drawWheel()
 
 if(velocity>0.01){
-
 requestAnimationFrame(animate)
-
 }else{
-
 spinning=false
 determineSpin()
-
 }
 
 }
